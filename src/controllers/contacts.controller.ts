@@ -3,8 +3,15 @@ import { contactsService } from '../services/contacts.service';
 
 export const getContacts = async (req: Request, res: Response) => {
     try {
-        const contacts = await contactsService.getAllContacts();
-        res.status(200).json(contacts);
+        const { search, page, limit, onlyHistory, onlyActive } = req.query;
+        const results = await contactsService.getAllContacts(
+            search as string,
+            Number(page || 1),
+            Number(limit || 20),
+            onlyHistory === 'true',
+            onlyActive === 'true'
+        );
+        res.status(200).json(results);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch contacts' });
     }

@@ -3,9 +3,48 @@ import { db } from '../config/firebase';
 export class ContactsService {
     private collection = db.collection('contacts');
 
-    async getAllContacts() {
-        const snapshot = await this.collection.get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    async getAllContacts(search?: string, page: number = 1, limit: number = 20, onlyHistory: boolean = false, onlyActive: boolean = false) {
+        let query: any = this.collection;
+
+        // Apply specialized filters
+        if (onlyHistory) {
+            // Fetch those already sent or with failed attempts
+            // Note: This is a complex query in Firestore if we use OR. 
+            // For simplicity, we'll filter by messageSent or attempts.
+            query = query.where('messageSent', '==', true);
+        }
+
+        if (onlyActive) {
+            query = query.where('active', '==', true);
+        }
+
+        // Apply search filter if provided
+        if (search) {
+            const searchLower = search.toLowerCase();
+            // Note: Firestore doesn't support complex "contains" or case-insensitive search easily.
+            // This is a basic prefix match as a workaround for Firebase limitations.
+            query = query.where('name', '>=', search).where('name', '<=', search + '\uf8ff');
+        }
+
+        // Get total count (using a separate count query is more efficient)
+        const totalSnapshot = await query.count().get();
+        const total = totalSnapshot.data().count;
+
+        // Apply pagination
+        // IMPORTANT: Offset in Firestore still costs reads for skipped items. 
+        // For 6k items it's acceptable, for millions we'd use cursor-based (startAfter).
+        const offset = (page - 1) * limit;
+        const snapshot = await query.orderBy('name').offset(offset).limit(limit).get();
+
+        const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+
+        return {
+            data,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        };
     }
 
     private sanitizePhone(raw: string): string {

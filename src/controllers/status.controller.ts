@@ -27,15 +27,38 @@ export const getSystemStatus = async (req: Request, res: Response) => {
             whatsappDetails.error = err?.response?.data?.error?.message || 'Cannot reach WhatsApp API';
         }
 
-        // 2. Get contacts stats from Firestore
-        const snap = await db.collection('contacts').get();
-        const contacts = snap.docs.map(d => d.data());
-        const totalContacts = contacts.length;
-        const sent = contacts.filter(c => c.messageSent).length;
-        const pending = contacts.filter(c => !c.messageSent).length;
-        const failed = contacts.filter(c => c.error).length;
+        // 2. Get contacts stats from Firestore using efficient aggregations
+        const contactsColl = db.collection('contacts');
 
-        // 3. Load config
+        const [totalCount, sentCount, pendingCount, failedCount] = await Promise.all([
+            contactsColl.count().get(),
+            contactsColl.where('messageSent', '==', true).count().get(),
+            contactsColl.where('messageSent', '==', false).count().get(),
+            contactsColl.where('error', '!=', null).count().get(),
+        ]);
+
+        const total = totalCount.data().count;
+        const sent = sentCount.data().count;
+        const pending = pendingCount.data().count;
+        const failed = failedCount.data().count;
+
+        // 3. For the chart, we still need some data but we can limit it or use a better query
+        // For now, let's get the counts per day of the week by querying only the 'sent' ones
+        // but limiting the fields to just 'updatedAt' (or createdAt).
+        // A more professional way would be a separate 'daily_stats' collection, but for 6k it's manageable.
+        const sentSnap = await contactsColl.where('messageSent', '==', true).select('updatedAt', 'createdAt').get();
+        const chartData = Array(7).fill(0);
+        sentSnap.docs.forEach(doc => {
+            const data = doc.data();
+            const date = data.updatedAt || data.createdAt;
+            if (date) {
+                const ms = date._seconds ? date._seconds * 1000 : new Date(date).getTime();
+                const day = new Date(ms).getDay();
+                chartData[day]++;
+            }
+        });
+
+        // 4. Load config
         const configDoc = await db.collection('system_config').doc('main').get();
         const config = configDoc.exists ? configDoc.data() : { messagesPerDay: 50, delayBetweenMessages: 2 };
 
@@ -45,12 +68,13 @@ export const getSystemStatus = async (req: Request, res: Response) => {
                 ...whatsappDetails,
             },
             contacts: {
-                total: totalContacts,
+                total,
                 sent,
                 pending,
                 failed,
-                deliveryRate: totalContacts > 0 ? parseFloat(((sent / totalContacts) * 100).toFixed(1)) : 0,
+                deliveryRate: total > 0 ? parseFloat(((sent / total) * 100).toFixed(1)) : 0,
             },
+            chart: chartData,
             config,
             timestamp: new Date().toISOString(),
         });
