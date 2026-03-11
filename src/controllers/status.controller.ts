@@ -42,15 +42,20 @@ export const getSystemStatus = async (req: Request, res: Response) => {
         const pending = pendingCount.data().count;
         const failed = failedCount.data().count;
 
-        // 3. For the chart, we still need some data but we can limit it or use a better query
-        // For now, let's get the counts per day of the week by querying only the 'sent' ones
-        // but limiting the fields to just 'updatedAt' (or createdAt).
-        // A more professional way would be a separate 'daily_stats' collection, but for 6k it's manageable.
-        const sentSnap = await contactsColl.where('messageSent', '==', true).select('updatedAt', 'createdAt').get();
+        // 3. For the chart: Get only the activity of the LAST 7 DAYS.
+        // This is much more efficient than scanning every document ever sent.
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        const recentSentSnap = await contactsColl
+            .where('messageSent', '==', true)
+            .where('updatedAt', '>=', sevenDaysAgo)
+            .select('updatedAt')
+            .get();
+
         const chartData = Array(7).fill(0);
-        sentSnap.docs.forEach(doc => {
-            const data = doc.data();
-            const date = data.updatedAt || data.createdAt;
+        recentSentSnap.docs.forEach(doc => {
+            const date = doc.data().updatedAt;
             if (date) {
                 const ms = date._seconds ? date._seconds * 1000 : new Date(date).getTime();
                 const day = new Date(ms).getDay();
