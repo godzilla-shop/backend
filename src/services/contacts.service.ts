@@ -47,6 +47,35 @@ export class ContactsService {
         };
     }
 
+    async bulkUpdateStatus(search: string, active: boolean) {
+        if (!search) throw new Error('Search filter is required for bulk update');
+
+        const query = this.collection
+            .where('name', '>=', search)
+            .where('name', '<=', search + '\uf8ff');
+
+        const snapshot = await query.get();
+        if (snapshot.empty) return 0;
+
+        const docs = snapshot.docs;
+        let totalUpdated = 0;
+
+        // Firestore batches are limited to 500 operations
+        for (let i = 0; i < docs.length; i += 500) {
+            const batch = db.batch();
+            const chunk = docs.slice(i, i + 500);
+
+            chunk.forEach(doc => {
+                batch.update(doc.ref, { active, updatedAt: new Date() });
+            });
+
+            await batch.commit();
+            totalUpdated += chunk.length;
+        }
+
+        return totalUpdated;
+    }
+
     private sanitizePhone(raw: string): string {
         let clean = String(raw ?? '').replace(/[\s\+\-\(\)]/g, '').trim();
 

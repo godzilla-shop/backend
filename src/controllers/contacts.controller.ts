@@ -42,3 +42,13 @@ export const deleteContact = async (req: Request, res: Response) => {
         res.status(500).json({ error: error.message || 'Failed to delete contact' });
     }
 };
+
+export const bulkStatusUpdate = async (req: Request, res: Response) => {
+    try {
+        const { search, active } = req.body;
+        const count = await contactsService.bulkUpdateStatus(search, active);
+        res.status(200).json({ success: true, count });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || 'Failed to bulk update status' });
+    }
+};

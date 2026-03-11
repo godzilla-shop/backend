@@ -8,5 +8,6 @@ router.post('/', contactsController.createContact);
 
 router.patch('/:id', contactsController.updateContact);
 router.delete('/:id', contactsController.deleteContact);
+router.post('/bulk-status', contactsController.bulkStatusUpdate);
 
 export default router;
