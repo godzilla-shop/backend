@@ -69,6 +69,61 @@ export class ContactsService {
         return { id, ...doc.data(), ...updateData };
     }
 
+    async bulkCreateContacts(contacts: { name: string; phone: string }[]) {
+        const results = {
+            imported: 0,
+            duplicates: 0,
+            skipped: 0
+        };
+
+        // 1. Sanitize and Filter
+        const validContacts = contacts.map(c => ({
+            name: String(c.name || '').trim(),
+            phone: this.sanitizePhone(c.phone)
+        })).filter(c => {
+            if (!c.phone || c.phone.length < 6) {
+                results.skipped++;
+                return false;
+            }
+            return true;
+        });
+
+        if (validContacts.length === 0) return results;
+
+        // 2. Process in batches of 500 (Firestore limit)
+        for (let i = 0; i < validContacts.length; i += 500) {
+            const chunk = validContacts.slice(i, i + 500);
+            const batch = db.batch();
+
+            // Bulk read all potential docs in this chunk
+            const refs = chunk.map(c => this.collection.doc(c.phone));
+            const snapshots = await db.getAll(...refs);
+
+            snapshots.forEach((snap, idx) => {
+                const contactData = chunk[idx];
+                if (snap.exists) {
+                    results.duplicates++;
+                } else {
+                    const newContact = {
+                        name: contactData.name,
+                        phone: contactData.phone,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                        messageSent: false,
+                        active: true,
+                        attempts: 0
+                    };
+                    batch.set(this.collection.doc(contactData.phone), newContact);
+                    results.imported++;
+                }
+            });
+
+            await batch.commit();
+        }
+
+        return results;
+    }
+
     async deleteContact(id: string) {
         const docRef = this.collection.doc(id);
         const doc = await docRef.get();

@@ -9,39 +9,21 @@ export const importExcel = async (req: Request, res: Response) => {
 
     try {
         const data = excelService.parseExcel(req.file.buffer);
-        const imported = [];
-        const duplicates = [];
-        const skipped = [];
 
-        for (const item of data as any[]) {
-            const rawPhone = item.phone || item.Telefono || item.Teléfono || item.telefono || '';
-            const name = String(item.name || item.Nombre || item.nombre || '').trim();
+        // Prepare contacts for bulk service
+        const rawContacts = (data as any[]).map(item => ({
+            name: String(item.name || item.Nombre || item.nombre || '').trim(),
+            phone: String(item.phone || item.Telefono || item.Teléfono || item.telefono || '')
+        }));
 
-            if (!rawPhone) {
-                skipped.push({ name, phone: '' });
-                continue;
-            }
-
-            try {
-                const result = await contactsService.createContact({ name, phone: String(rawPhone) }) as any;
-
-                if (result.duplicated) {
-                    duplicates.push(result);
-                } else {
-                    imported.push(result);
-                }
-            } catch (err: any) {
-                // If it's an 'Invalid phone number' or similar validation error from the service
-                skipped.push({ name, phone: rawPhone, error: err.message });
-            }
-        }
+        const results = await contactsService.bulkCreateContacts(rawContacts);
 
         res.status(200).json({
             message: 'Import completed',
             summary: {
-                newlyImported: imported.length,
-                duplicatesFound: duplicates.length,
-                invalidRows: skipped.length,
+                newlyImported: results.imported,
+                duplicatesFound: results.duplicates,
+                invalidRows: results.skipped,
                 totalProcessed: data.length
             }
         });
