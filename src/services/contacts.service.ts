@@ -30,11 +30,23 @@ export class ContactsService {
         const totalSnapshot = await query.count().get();
         const total = totalSnapshot.data().count;
 
-        // Apply pagination
-        // IMPORTANT: Offset in Firestore still costs reads for skipped items. 
-        // For 6k items it's acceptable, for millions we'd use cursor-based (startAfter).
+        // Apply pagination and ordering
         const offset = (page - 1) * limit;
-        const snapshot = await query.orderBy('name').offset(offset).limit(limit).get();
+        
+        // Define order field based on context
+        let orderField = 'name';
+        let orderDir: 'asc' | 'desc' = 'asc';
+        
+        if (onlyHistory) {
+            orderField = 'updatedAt';
+            orderDir = 'desc';
+        }
+
+        const snapshot = await query
+            .orderBy(orderField, orderDir)
+            .offset(offset)
+            .limit(limit)
+            .get();
 
         const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 

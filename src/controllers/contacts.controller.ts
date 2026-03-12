@@ -12,8 +12,9 @@ export const getContacts = async (req: Request, res: Response) => {
             onlyActive === 'true'
         );
         res.status(200).json(results);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch contacts' });
+    } catch (error: any) {
+        console.error('Error fetching contacts:', error);
+        res.status(500).json({ error: error.message || 'Failed to fetch contacts' });
     }
 };
 
