@@ -20,16 +20,24 @@ export const sendMessage = async (req: Request, res: Response) => {
 
 export const startCampaignManual = async (req: Request, res: Response) => {
     try {
-        // Trigger the queue processing with force=true to bypass the daily lock
-        // but it still follows the limit in the database.
-        const result = await runMessageQueue(true);
+        // Trigger the queue processing ASYNCHRONOUSLY
+        // We don't 'await' it here to prevent timeouts.
+        // It runs in the background.
+        runMessageQueue(true)
+            .then(result => {
+                console.log('✅ Background Campaign Finished:', result);
+            })
+            .catch(err => {
+                console.error('❌ Background Campaign Error:', err);
+            });
+
+        // Respond immediately to the frontend
         res.status(200).json({
             success: true,
-            message: 'Campaign started manually',
-            details: result
+            message: 'Campaign triggered in the background. Check History or Render logs for progress.'
         });
     } catch (error: any) {
-        console.error('Manual Campaign Error:', error);
-        res.status(500).json({ error: error.message || 'Failed to start campaign' });
+        console.error('Manual Campaign Trigger Error:', error);
+        res.status(500).json({ error: error.message || 'Failed to trigger campaign' });
     }
 };
