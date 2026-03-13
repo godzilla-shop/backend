@@ -9,6 +9,7 @@ import messagesRoutes from './routes/messages.routes';
 import systemConfigRoutes from './routes/systemConfig.routes';
 import importRoutes from './routes/import.routes';
 import statusRoutes from './routes/status.routes';
+import webhookRoutes from './routes/webhook.routes';
 import { initMessageScheduler } from './jobs/messageQueue.job';
 
 dotenv.config();
@@ -33,6 +34,7 @@ app.use('/api/messages', messagesRoutes);
 app.use('/api/config', systemConfigRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/status', statusRoutes);
+app.use('/api/webhook', webhookRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
