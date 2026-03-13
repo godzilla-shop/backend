@@ -56,6 +56,34 @@ export class WhatsAppService {
             console.error('WhatsApp API Error:', error.response?.data || error.message);
             throw new Error('Failed to send WhatsApp template message');
         }
+    async sendTextMessage(to: string, message: string) {
+        try {
+            const url = `${WHATSAPP_API_URL}/${this.phoneNumberId}/messages`;
+
+            const response = await axios.post(
+                url,
+                {
+                    messaging_product: 'whatsapp',
+                    recipient_type: 'individual',
+                    to: to,
+                    type: 'text',
+                    text: {
+                        preview_url: false,
+                        body: message
+                    },
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${this.accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+            return response.data;
+        } catch (error: any) {
+            console.error('WhatsApp Text API Error:', error.response?.data || error.message);
+            throw new Error('Failed to send WhatsApp text message');
+        }
     }
 }
 

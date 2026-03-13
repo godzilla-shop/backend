@@ -11,7 +11,12 @@ export const sendMessage = async (req: Request, res: Response) => {
     }
 
     try {
-        const result = await whatsappService.sendTemplateMessage(to, 'nuovo_numero_godzilla', 'it', 'Cliente');
+        let result;
+        if (req.body.template) {
+            result = await whatsappService.sendTemplateMessage(to, req.body.template, req.body.lang || 'it', req.body.name || '');
+        } else {
+            result = await whatsappService.sendTextMessage(to, message);
+        }
         res.status(200).json({ success: true, result });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
