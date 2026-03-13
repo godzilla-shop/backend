@@ -56,6 +56,8 @@ export class WhatsAppService {
             console.error('WhatsApp API Error:', error.response?.data || error.message);
             throw new Error('Failed to send WhatsApp template message');
         }
+    }
+
     async sendTextMessage(to: string, message: string) {
         try {
             const url = `${WHATSAPP_API_URL}/${this.phoneNumberId}/messages`;
