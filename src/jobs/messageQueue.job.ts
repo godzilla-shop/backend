@@ -95,9 +95,13 @@ export const runMessageQueue = async (force: boolean = false) => {
                 sentCount++;
                 console.log(`✅ [${sentCount}/${pendingSnap.size}] Sent to ${contact.phone}`);
 
-                // Normal random human-like delay: 4–15 seconds
-                const delay = randomDelay(4, 15);
-                await sleep(delay);
+                // Use custom delay from config with a small random jitter (+/- 20%)
+                const baseDelay = config?.delayBetweenMessages ?? 60;
+                const jitter = Math.floor(baseDelay * 0.2);
+                const finalDelay = randomDelay(baseDelay - jitter, baseDelay + jitter);
+                
+                console.log(`⏱️ [Queue] Waiting ${Math.round(finalDelay / 1000)}s before next message...`);
+                await sleep(finalDelay);
 
                 // Every 50 messages → long human-like pause (2–4 minutes)
                 if (sentCount % 50 === 0 && sentCount < pendingSnap.size) {
