@@ -52,7 +52,7 @@ export const receiveMessage = async (req: Request, res: Response) => {
 
                 // 2. Save message to Firestore
                 const chatRef = db.collection('chats').doc(from);
-                
+
                 // 3. Update chat metadata
                 await chatRef.set({
                     lastMessage: msgBody,
@@ -85,7 +85,7 @@ export const receiveMessage = async (req: Request, res: Response) => {
                 const status = statusUpdate.status; // delivered, read, sent, failed
 
                 console.log(`📱 Status update for ${recipientId}: ${status}`);
-                
+
                 // We could update the message status in Firestore here
             }
 
