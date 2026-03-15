@@ -8,7 +8,8 @@ export const getSystemConfig = async () => {
             messagesPerDay: 50,
             delayBetweenMessages: 10,
             retryAttempts: 3,
-            pauseOnRateLimit: true
+            pauseOnRateLimit: true,
+            whatsappTemplate: 'nuovo_numero_godzilla'
         };
     }
     return doc.data();

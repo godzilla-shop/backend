@@ -78,10 +78,12 @@ export const runMessageQueue = async (force: boolean = false) => {
             const contact = doc.data();
 
             try {
-                // Use the official template name
+                // Use the template name from config, fallback to default if missing
+                const templateName = config?.whatsappTemplate || 'nuovo_numero_godzilla';
+                
                 await whatsappService.sendTemplateMessage(
                     contact.phone,
-                    'nuovo_numero_godzilla',
+                    templateName,
                     'it',
                     contact.name
                 );
