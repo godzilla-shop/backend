@@ -45,15 +45,20 @@ export const receiveMessage = async (req: Request, res: Response) => {
                 const msgBody = message.text?.body || 'Attachment/Media';
                 const timestamp = new Date();
 
-                // Save message to Firestore
+                // 1. Determine the name: Prioritize our database over WhatsApp profile
+                const contactDoc = await db.collection('contacts').doc(from).get();
+                const profileName = body.entry[0].changes[0].value.contacts?.[0]?.profile?.name || 'Cliente';
+                const displayName = contactDoc.exists ? contactDoc.data()?.name : profileName;
+
+                // 2. Save message to Firestore
                 const chatRef = db.collection('chats').doc(from);
                 
-                // Update chat metadata
+                // 3. Update chat metadata
                 await chatRef.set({
                     lastMessage: msgBody,
                     updatedAt: timestamp,
                     phone: from,
-                    name: body.entry[0].changes[0].value.contacts?.[0]?.profile?.name || 'Cliente',
+                    name: displayName,
                 }, { merge: true });
 
                 // Add to messages sub-collection
