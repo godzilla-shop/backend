@@ -42,10 +42,29 @@ export const getSystemStatus = async (req: Request, res: Response) => {
         const pending = pendingCount.data().count;
         const failed = failedCount.data().count;
 
-        // 3. For the chart: Get only the activity of the LAST 7 DAYS.
-        // This is much more efficient than scanning every document ever sent.
+        // 3. For the chart: Get activity of the LAST 7 DAYS in chronological order
+        const chartData: { name: string, count: number }[] = [];
+        const daysToFetch = 7;
+        const itDays = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+        const esDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        const isIt = (req.query.lang || 'it') === 'it';
+        const labels = isIt ? itDays : esDays;
+
+        // Create an array for the last 7 days
+        for (let i = daysToFetch - 1; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            chartData.push({
+                name: labels[d.getDay()],
+                count: 0,
+                // store normalized date key YYYY-MM-DD for matching
+                dateKey: d.toISOString().split('T')[0]
+            } as any);
+        }
+
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
 
         const recentSentSnap = await contactsColl
             .where('messageSent', '==', true)
@@ -53,15 +72,20 @@ export const getSystemStatus = async (req: Request, res: Response) => {
             .select('updatedAt')
             .get();
 
-        const chartData = Array(7).fill(0);
         recentSentSnap.docs.forEach(doc => {
             const date = doc.data().updatedAt;
             if (date) {
                 const ms = date._seconds ? date._seconds * 1000 : new Date(date).getTime();
-                const day = new Date(ms).getDay();
-                chartData[day]++;
+                const dateKey = new Date(ms).toISOString().split('T')[0];
+                const dayEntry = chartData.find((d: any) => d.dateKey === dateKey);
+                if (dayEntry) {
+                    dayEntry.count++;
+                }
             }
         });
+
+        // Remove dateKey before sending to frontend
+        const finalChart = chartData.map((d: any) => ({ name: d.name, envios: d.count }));
 
         // 4. Load config
         const configDoc = await db.collection('system_config').doc('main').get();
@@ -79,7 +103,7 @@ export const getSystemStatus = async (req: Request, res: Response) => {
                 failed,
                 deliveryRate: total > 0 ? parseFloat(((sent / total) * 100).toFixed(1)) : 0,
             },
-            chart: chartData,
+            chart: finalChart,
             config,
             timestamp: new Date().toISOString(),
         });
