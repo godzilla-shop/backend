@@ -42,7 +42,29 @@ export const receiveMessage = async (req: Request, res: Response) => {
             ) {
                 const message = body.entry[0].changes[0].value.messages[0];
                 const from = message.from; // Phone number
-                const msgBody = message.text?.body || 'Attachment/Media';
+                
+                // --- SMART MESSAGE DETECTION ---
+                let msgBody = 'Attachment/Media';
+
+                if (message.text) {
+                    msgBody = message.text.body;
+                } else if (message.button) {
+                    msgBody = message.button.text; // Quick reply buttons
+                } else if (message.interactive) {
+                    const interactive = message.interactive;
+                    msgBody = interactive.button_reply?.title || interactive.list_reply?.title || 'Interactive Reply';
+                } else if (message.location) {
+                    msgBody = '📍 Posizione inviata';
+                } else if (message.reaction) {
+                    msgBody = `Reazione: ${message.reaction.emoji}`;
+                } else if (message.type === 'image') {
+                    msgBody = '📷 Immagine';
+                } else if (message.type === 'video') {
+                    msgBody = '🎥 Video';
+                } else if (message.type === 'audio' || message.type === 'voice') {
+                    msgBody = '🎤 Audio';
+                }
+
                 const timestamp = new Date();
 
                 // 1. Determine the name: Prioritize our database over WhatsApp profile
